@@ -6,6 +6,19 @@ import * as data from './seedData';
 
 class App extends Component {
 
+    selectButtonHandler= () => {
+        if (this.state.messages.filter(message => !message.selected).length === 0 ){
+            this.setState(this.state.messages.map(message => message.selected = false))
+        }
+        else{
+            this.setState(this.state.messages.map(message => message.selected = true))
+        }
+    };
+
+    filterSelected=() => {
+        return this.state.messages.filter(message => !message.selected);
+    }
+
     constructor(props) {
         super(props)
         this.state = {messages: data.seedData}
@@ -17,6 +30,11 @@ class App extends Component {
         )
         return unread.length
     };
+
+    deleteSelected = () => {
+        const messages = this.filterSelected()
+        this.setState({ messages })
+    }
 
     selectHandler = (id) => {
         this.setState(this.toggleSelectOnId(id))
@@ -44,6 +62,18 @@ class App extends Component {
     countSelected = () => {
         return this.getSelected().length
     }
+
+    selectAllState = () => {
+        if (this.countSelected() === 0){
+            return "fa fa-square-o";
+        }
+        else if (this.countSelected() === this.state.messages.length){
+            return "fa fa-check-square-o";
+        }
+        else{
+            return "fa fa-minus-square-o";
+        }
+    }
     markAsRead = () => {
         this.setReadStatus(true);
     }
@@ -56,6 +86,27 @@ class App extends Component {
     }
     markAsUnread = () => {
         this.setReadStatus(false);
+    }
+    isDisabled = () => {
+        if (this.countSelected() === 0){
+            return "disabled"
+        }
+        else {
+            return ""
+        }
+    }
+    removeLabel = (e) => {
+        const selectedLabel = e.target.value
+        const messages = this.state.messages.map(message => message.selected ?
+            {... message , labels: message.labels.filter(label => label !== selectedLabel)} : message)
+        this.setState({messages});
+    }
+
+    addLabel = (e) => {
+        const selectedLabel = e.target.value
+        const messages = this.state.messages.map(message => message.selected && !message.labels.includes(selectedLabel)
+            ?  {... message , labels: message.labels.concat(selectedLabel)} : message)
+        this.setState({messages});
     }
 
     getSelected() {
@@ -75,35 +126,35 @@ class App extends Component {
                             unread message{(this.countUnread() > 1) ? "s" : "" }
                         </p>
 
-                        <button className="btn btn-default">
-                            <i className="fa fa-square-o"></i>
+                        <button className="btn btn-default" onClick={this.selectButtonHandler}>
+                            <i className={this.selectAllState()}></i>
                         </button>
 
-                        <button className="btn btn-default" disabled={(this.countSelected() === 0) ? "disabled" : ""}
+                        <button className="btn btn-default" disabled={this.isDisabled()}
                                 onClick={this.markAsRead}>
                             Mark As Read
                         </button>
 
-                        <button className="btn btn-default" disabled={(this.countSelected() === 0) ? "disabled" : ""}
+                        <button className="btn btn-default" disabled={this.isDisabled()}
                                 onClick={this.markAsUnread}>
                             Mark As Unread
                         </button>
 
-                        <select className="form-control label-select" disabled="disabled">
+                        <select className="form-control label-select" disabled={this.isDisabled()} onChange={this.addLabel}>
                             <option>Apply label</option>
                             <option value="dev">dev</option>
                             <option value="personal">personal</option>
                             <option value="gschool">gschool</option>
                         </select>
 
-                        <select className="form-control label-select" disabled="disabled">
+                        <select className="form-control label-select" disabled={this.isDisabled()} onChange={this.removeLabel}>
                             <option>Remove label</option>
                             <option value="dev">dev</option>
                             <option value="personal">personal</option>
                             <option value="gschool">gschool</option>
                         </select>
 
-                        <button className="btn btn-default" disabled="disabled">
+                        <button className="btn btn-default" disabled={this.isDisabled()} onClick={this.deleteSelected}>
                             <i className="fa fa-trash-o"></i>
                         </button>
                     </div>
