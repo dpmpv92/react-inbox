@@ -19,7 +19,7 @@ const Message = ({id ,subject, read, starred, labels, selected, selectHandler, f
     this.messageFavoriteHandler = function () {
         favoriteHandler(id)
     }
-    this.isRead = function () {
+    const isRead = () => {
         if (read) {
            return " read"
         } else {
@@ -37,7 +37,7 @@ const Message = ({id ,subject, read, starred, labels, selected, selectHandler, f
 
     return (
 
-    <div className={ "row message" +  this.isRead() +  this.isSelected()}>
+    <div className={ "row message" +  isRead() +  this.isSelected()}>
         <div className="col-xs-1">
             <div className="row">
                 <div className="col-xs-2">

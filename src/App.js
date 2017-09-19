@@ -1,8 +1,7 @@
 import React, {Component} from 'react';
-import logo from './logo.svg';
 import Messages from './Messages';
+import ComposeForm from './ComposeForm';
 import './App.css';
-import * as data from './seedData';
 
 class App extends Component {
 
@@ -15,13 +14,13 @@ class App extends Component {
         }
     };
 
-    filterSelected=() => {
+    filterSelected = () => {
         return this.state.messages.filter(message => !message.selected);
     }
 
     constructor(props) {
         super(props)
-        this.state = {messages: data.seedData}
+        this.state = {messages: [], showComposeForm: false}
     }
 
     countUnread = () => {
@@ -32,8 +31,11 @@ class App extends Component {
     };
 
     deleteSelected = () => {
+        const messageIds = this.getSelectedIds();
         const messages = this.filterSelected()
         this.setState({ messages })
+        this.makeApiCall("/api/messages", "PATCH", JSON.stringify({ messageIds: [messageIds],
+            command: 'delete',}))
     }
 
     selectHandler = (id) => {
@@ -43,19 +45,22 @@ class App extends Component {
         this.setState(this.toggleFavoriteOnId(id))
     }
 
-    toggleSelectOnId(id) {
+    toggleSelectOnId = (id) => {
         return this.state.messages.map((message) => message.id === id ? this.toggleSelected(message) : message);
     }
-    toggleFavoriteOnId(id) {
+    toggleFavoriteOnId = (id) => {
         return this.state.messages.map((message) => message.id === id ? this.toggleFavorite(message) : message);
     }
 
-    toggleSelected(message) {
+    toggleSelected = (message) => {
         message.selected = message.selected ? false : true;
         return message;
     }
-    toggleFavorite(message) {
+    toggleFavorite = (message) => {
         message.starred = message.starred ? false : true;
+        this.makeApiCall("/api/messages","PATCH", JSON.stringify({messageIds: [message.id],
+            command: 'star',
+            star: message.starred,}))
         return message;
     }
 
@@ -78,11 +83,20 @@ class App extends Component {
         this.setReadStatus(true);
     }
 
-    setReadStatus(status) {
+    setReadStatus = (status) => {
+        let messageIds = [];
         this.setState(this.state.messages.map((message) => {
-            message.selected === true ? message.read = status : message.selected
+            message.selected === true ? this.setMessageReadStatusAndAddToArray(message, status, messageIds) : message.selected
             return message;
         }))
+        this.makeApiCall("/api/messages","PATCH", JSON.stringify({  messageIds: messageIds,
+            command: 'read',
+            read: status,}))
+    }
+
+    setMessageReadStatusAndAddToArray = (message, status, messageIds) => {
+        messageIds.push(message.id);
+        return message.read = status;
     }
     markAsUnread = () => {
         this.setReadStatus(false);
@@ -95,25 +109,84 @@ class App extends Component {
             return ""
         }
     }
-    removeLabel = (e) => {
+
+    filterLabelFromMessage = (message, selectedLabel) => {
+        return ({... message , labels: message.labels.filter(label => label !== selectedLabel)});
+    }
+    addLabelToMessage = (message, selectedLabel) => {
+        return ({... message , labels: message.labels.concat(selectedLabel)});
+    }
+
+
+    removeLabelFromSelected = (e) => {
         const selectedLabel = e.target.value
+        let messageIds = this.getSelectedIds()
         const messages = this.state.messages.map(message => message.selected ?
-            {... message , labels: message.labels.filter(label => label !== selectedLabel)} : message)
+            this.filterLabelFromMessage(message,selectedLabel) : message)
         this.setState({messages});
+        this.makeApiCall('/api/messages','PATCH', JSON.stringify({  messageIds: messageIds,
+            command: 'removeLabel',
+            label: selectedLabel}));
+    }
+    makeApiCall = async(path, method, body) => {
+        let response = await fetch(path, {
+            method: method,
+            body: body,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        })
+        let data = await response.json();
+        return data;
+    }
+
+    addMessage = async(subject, body) =>{
+        const newMessage = await this.makeApiCall("/api/messages", "POST", JSON.stringify({subject: subject, body: body}))
+        console.log(newMessage);
+        this.setState({messages: this.state.messages.concat(newMessage)})
     }
 
     addLabel = (e) => {
+        let messageIds = this.getSelectedIds();
         const selectedLabel = e.target.value
-        const messages = this.state.messages.map(message => message.selected && !message.labels.includes(selectedLabel)
-            ?  {... message , labels: message.labels.concat(selectedLabel)} : message)
+        const messages = this.state.messages.map(message => message.selected ?
+            this.addLabelToMessage(message,selectedLabel) : message)
         this.setState({messages});
+        this.makeApiCall('/api/messages','PATCH', JSON.stringify({  messageIds: messageIds,
+            command: 'addLabel',
+            label: selectedLabel}));
     }
 
-    getSelected() {
+    getSelected = () =>{
         return this.state.messages.filter(message => {
                 return message.selected === true
             }
         );
+    }
+    renderForm = () =>{
+        if(this.state.showComposeForm ){
+            return (
+                <ComposeForm addMessage={this.addMessage}></ComposeForm>
+            )
+        }
+    }
+    getSelectedIds = () =>{
+        const messageIds = [];
+        this.state.messages.filter(message => {
+            messageIds.push(message.id)
+            }
+        )
+        return messageIds;
+    }
+    toggleShowComposedForm = () => {
+        this.setState({showComposeForm: !this.state.showComposeForm})
+    }
+
+    async componentDidMount() {
+        const response = await fetch('http://localhost:8081/api/messages')
+        const json = await response.json()
+        this.setState({messages: json._embedded.messages})
     }
 
     render() {
@@ -125,6 +198,10 @@ class App extends Component {
                             <span className="badge badge">{this.countUnread()}</span>
                             unread message{(this.countUnread() > 1) ? "s" : "" }
                         </p>
+
+                        <a className="btn btn-danger" onClick={this.toggleShowComposedForm}>
+                            <i className="fa fa-plus"></i>
+                        </a>
 
                         <button className="btn btn-default" onClick={this.selectButtonHandler}>
                             <i className={this.selectAllState()}></i>
@@ -147,7 +224,7 @@ class App extends Component {
                             <option value="gschool">gschool</option>
                         </select>
 
-                        <select className="form-control label-select" disabled={this.isDisabled()} onChange={this.removeLabel}>
+                        <select className="form-control label-select" disabled={this.isDisabled()} onChange={this.removeLabelFromSelected}>
                             <option>Remove label</option>
                             <option value="dev">dev</option>
                             <option value="personal">personal</option>
@@ -159,6 +236,7 @@ class App extends Component {
                         </button>
                     </div>
                 </div>
+                {this.renderForm() }
                 <Messages messages={this.state.messages} selectHandler={this.selectHandler} favoriteHandler={this.favoriteHandler}/>
             </div>
         );
