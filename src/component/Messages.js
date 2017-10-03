@@ -1,10 +1,8 @@
-import React, {Component} from 'react';
-import logo from './logo.svg';
+import React from 'react';
 import Message from './Message';
-import './App.css';
-import * as data from './seedData';
+import {connect} from "react-redux";
 
-const Messages = ({messages, selectHandler, favoriteHandler}) => {
+const Messages = ({messages}) => {
     function renderMessages() {
         return messages.map((message, index) => {
             return <Message key={index}
@@ -13,9 +11,7 @@ const Messages = ({messages, selectHandler, favoriteHandler}) => {
                             read={message.read}
                             starred={message.starred}
                             labels={message.labels}
-                            selected={message.selected}
-                            selectHandler={selectHandler}
-                            favoriteHandler={favoriteHandler}/>
+                            selected={message.selected}/>
         });
     }
 
@@ -27,4 +23,12 @@ const Messages = ({messages, selectHandler, favoriteHandler}) => {
     )
 }
 
-export default Messages;
+const mapStateToProps = state => ({
+    messages: state.messages.messages,
+
+})
+
+export default connect(
+    mapStateToProps,
+    null
+)(Messages)
